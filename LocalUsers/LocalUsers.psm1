@@ -1,6 +1,6 @@
 <#S
 .SYNOPSIS
-Powerful local users managment
+Powerful local users management
 #>
 
 <#
@@ -30,14 +30,14 @@ $users = @()
 
 function Read-Quser {
     <# Inner function
-    
-    Parses the text output of the quser command, creating and returning an array of 
+
+    Parses the text output of the quser command, creating and returning an array of
     PowerShell custom objects representing user information.
     #>
 
 $quserOutput = quser
 
-<# 
+<#
 Define columns start positions from the header text line layout in English and should work for any language, consider these two layouts
  USERNAME              SESSIONNAME        ID  STATE   IDLE TIME  LOGON TIME - English
  NOMEUTENTE            NOMESESSIONE       ID  STATO   INATTIVITÀ ACCESSO    - Italian
@@ -46,8 +46,8 @@ as you can see Microsoft takes care of spacing the column the same way for diffe
 $headerLine = $quserOutput[0]
 $p0 = $headerLine.IndexOf("USERNAME")
 $p1 = $headerLine.IndexOf("SESSIONNAME")
-$p2 = $headerLine.IndexOf("ID")   
-$p3 = $headerLine.IndexOf("STATE")   
+$p2 = $headerLine.IndexOf("ID")
+$p3 = $headerLine.IndexOf("STATE")
 $p4 = $headerLine.IndexOf("IDLE TIME")
 $p5 = $headerLine.IndexOf("LOGON TIME")
 $p6 = $headerLine.Length
@@ -77,7 +77,7 @@ $parsedData = foreach ($line in $dataLines) {
     }
 }
 
-Write-Output $parsedData 
+Write-Output $parsedData
 }
 
 function Update-UserData {
@@ -127,7 +127,7 @@ function Update-UserData {
     # Add running sessions data to user accounts
     $sessions = Read-Quser
     foreach ($user in $Script:users) {
-        foreach ($session in $sessions) {           
+        foreach ($session in $sessions) {
             if ($session.USERNAME -eq $user.Name) {
                 $user.LastLogout = '-' # overwrite LastUseTime that returns current time if session is running
                 $user.SessionID = $session.ID
@@ -136,9 +136,9 @@ function Update-UserData {
                 break
             }
         }
-    }   
+    }
 
-    <# 
+    <#
     Search for user profiles without a name.
     User profiles without a name happens as far as I know in two cases:
     1. users removed with Remove-LocalUser, command that does not delete profile directories and registry entries associated with the account
@@ -177,19 +177,19 @@ function Stop-Session {
         [Parameter(Mandatory = $true)]
         [string]$SessionID
     )
-    logoff $SessionID           
+    logoff $SessionID
 }
 
 function Backup-UserProfile {
     <# Inner function
 
-    Backs up the user profile associated with the specified SID. 
+    Backs up the user profile associated with the specified SID.
     - Excludes symbolic links.
-    - Saves the backup with timestamp to the current user's desktop.    
+    - Saves the backup with timestamp to the current user's desktop.
     #>
     param (
         [Parameter(Mandatory=$True)]
-        [string]$SID        
+        [string]$SID
     )
 
     $Name = ($users | Where-Object {$_.SID -eq $SID.Trim()} | Select-Object NAME).NAME
@@ -202,16 +202,16 @@ function Backup-UserProfile {
         if (-Not (Test-Path -Path $BackupPath)) {
             New-Item -ItemType Directory -Path $BackupPath | Out-Null
         }
-    
+
         # List of folders to backup
         $foldersToBackup = @("Desktop", "Documents", "Pictures", "Music", "Videos", "Favorites")
-    
+
         foreach ($folder in $foldersToBackup) {
             $sourcePath = Join-Path $userLocalPath $folder
             $destPath = Join-Path $BackupPath $folder
-    
+
             & robocopy $sourcePath $destPath /E /XJ /R:1 /W:1 | Out-Null
-    
+
             $successfulBackup = $true
             # Check robocopy exit code (0-7 are considered successful)
             if ($LASTEXITCODE -gt 7) {$successfulBackup = $false}
@@ -223,7 +223,7 @@ function Backup-UserProfile {
         else {
             Write-Warning "$Name user profile backup failed."
         }
-    } 
+    }
     else {
         Write-Warning "$Name user profile does not exist"
     }
@@ -235,7 +235,7 @@ function Get-User {
     Displays local user account data, excluding built-in and system accounts.
 
     .DESCRIPTION
-    This cmdlet retrieves detailed information about local user accounts on the system. 
+    This cmdlet retrieves detailed information about local user accounts on the system.
     Data is collected from the sources: Get-LocalUser, Get-CimInstance, Get-LocalGroupMember, and quser.
 
     .OUTPUTS
@@ -251,13 +251,13 @@ function Get-User {
             SessionID:        The current session ID of the user.
             IdleSessionTime:  The duration formatted as Days+HH:mm of user inactivity in the current session (disconnected while leaving session running).
             SessionStart:     The date and time the user's current session started.
-    #>    
+    #>
 
     param ([Switch]$Activity)
     if ($Activity) {
         $columns = @(
             @{n='Username'; e={$_.Name}},
-            @{n='PasswordLastSet'; e={$_.PasswordLastSet ? $_.PasswordLastSet:'-'}}, 
+            @{n='PasswordLastSet'; e={$_.PasswordLastSet ? $_.PasswordLastSet:'-'}},
             @{n='LastLogin';e={$_.LastLogon ? $_.LastLogon:'-'}},
             @{n='LastLogout';e={$_.LastLogout ? $_.LastLogout:'-'}},
             @{n='IdleSessionTime';e={$_.IdleSessionTime ? $_.IdleSessionTime:'-'}},
@@ -272,8 +272,8 @@ function Get-User {
             @{n='LocalPath';e={$_.LocalPath ? $_.LocalPath:'<Never created>'}},
             'isAdmin'
         )
-    }  
-    
+    }
+
     Update-UserData
     Write-Output $users | Select-Object $columns
 }
@@ -281,12 +281,12 @@ function Get-User {
 function New-User {
     <#
     .SYNOPSIS
-    Creates a local standard user account with an indefinite expiration. 
+    Creates a local standard user account with an indefinite expiration.
 
     .DESCRIPTION
-    Creates a local standard user account with an indefinite expiration. 
+    Creates a local standard user account with an indefinite expiration.
     If no password is provided, the account is created without a password.
-    
+
     #>
     param (
         [Parameter(Mandatory=$True)]
@@ -296,7 +296,7 @@ function New-User {
     try {
         if ($null -eq $Password) {
             # Password is blank
-            $pswd = [securestring]::new() 
+            $pswd = [securestring]::new()
         }
         else {
             $pswd = ConvertTo-SecureString $Password -AsPlainText -Force
@@ -305,7 +305,7 @@ function New-User {
                       -AccountNeverExpires -ErrorAction Stop | Out-Null
 
         Add-LocalGroupMember -Group Users -Member $Name
-        
+
         Write-Host "$Name standard account created" -ForegroundColor Green
     }
     catch [Microsoft.PowerShell.Commands.UserExistsException] {
@@ -317,7 +317,7 @@ function Remove-User {
     <#
     .SYNOPSIS
     Removes the specified local user account, including profile folder and registry entries.
-    
+
     .DESCRIPTION
     Removes the specified account using either the provided -SID or -Name parameter.
 
@@ -330,8 +330,8 @@ function Remove-User {
     .PARAMETER Backup
     Switch parameter: if provided it backs up the user profile and
     - Excludes symbolic links.
-    - Saves the backup with a timestamp to the current user's desktop. 
-    
+    - Saves the backup with a timestamp to the current user's desktop.
+
     .NOTES
     Inspiration: https://adamtheautomator.com/powershell-delete-user-profile/
     #>
@@ -360,7 +360,7 @@ function Remove-User {
             # Logout before removing
             Stop-Session -SessionID $SessionID
         }
-    
+
         if ($Backup) {
             Backup-UserProfile -SID $SID
         }
@@ -374,7 +374,7 @@ function Remove-User {
             else {
                 Write-Warning "Profile not found for Account with SID: $SID"
             }
-    
+
             # Remove the sign-in entry in Windows
             Remove-LocalUser -SID $SID -ErrorAction Stop
             Write-Host "Removed account with SID: $SID" -ForegroundColor Green
