@@ -21,10 +21,11 @@ These accounts are foundational to Windows and shouldn’t be altered or deleted
 #>
 
 #Requires -RunAsAdministrator
+$DebugPreference = 'Continue'
 
 # -- Module vars --
 
-$users = @()
+[array]$users = @()
 
 # -- End --
 
@@ -123,7 +124,6 @@ function Update-UserData {
     foreach ($user in $Script:users) {
         $user.isAdmin = $Administrators -Contains "$env:COMPUTERNAME\$($user.name)"
     }
-
     # Add running sessions data to user accounts
     $sessions = Read-Quser
     foreach ($user in $Script:users) {
@@ -144,7 +144,7 @@ function Update-UserData {
     1. users removed with Remove-LocalUser, command that does not delete profile directories and registry entries associated with the account
     2. users manually removed without deleting their associated data, a feature allowed in older versions of Windows
     #>
-    $missingAccounts = @()
+    [array]$missingAccounts = @()
     $missingAccounts = foreach ($profile in $userprofiles) {
         if ($profile.SID -notin $users.SID) {
             [PSCustomObject]@{
@@ -162,7 +162,6 @@ function Update-UserData {
             }
         }
     }
-
     $Script:users += $missingAccounts
 }
 
@@ -273,7 +272,6 @@ function Get-User {
             'isAdmin'
         )
     }
-
     Update-UserData
     Write-Output $users | Select-Object $columns
 }
@@ -281,32 +279,32 @@ function Get-User {
 function New-User {
     <#
     .SYNOPSIS
-    Creates a local standard user account with an indefinite expiration.
+    Creates a local user account with no expiration and a blank password.
+    If the -isAdmin switch is provided, the account will have administrator 
+    privileges; otherwise, it will be a standard user.
 
     .DESCRIPTION
-    Creates a local standard user account with an indefinite expiration.
-    If no password is provided, the account is created without a password.
-
+    Creates a local account with a blank password. The newly created 
+    user must log in to set a password if desired.
     #>
     param (
         [Parameter(Mandatory=$True)]
         [string]$Name,
-        [string]$Password
+        [switch]$isAdmin
     )
     try {
-        if ($null -eq $Password) {
-            # Password is blank
-            $pswd = [securestring]::new()
-        }
-        else {
-            $pswd = ConvertTo-SecureString $Password -AsPlainText -Force
-        }
-        New-LocalUser -Name $Name -Password $pswd -PasswordNeverExpires `
+        $blankPassword = [securestring]::new()
+        New-LocalUser -Name $Name -Password $blankPassword -PasswordNeverExpires `
                       -AccountNeverExpires -ErrorAction Stop | Out-Null
 
-        Add-LocalGroupMember -Group Users -Member $Name
-
-        Write-Host "$Name standard account created" -ForegroundColor Green
+        if ($isAdmin) {
+            Add-LocalGroupMember -Group Administrators -Member $Name
+            Write-Host "$Name administrator account created" -ForegroundColor Green
+        }
+        else {
+            Add-LocalGroupMember -Group Users -Member $Name
+            Write-Host "$Name standard account created" -ForegroundColor Green
+        }
     }
     catch [Microsoft.PowerShell.Commands.UserExistsException] {
         Write-Host "$Name account alredy exist" -ForegroundColor Red
@@ -316,10 +314,10 @@ function New-User {
 function Remove-User {
     <#
     .SYNOPSIS
-    Removes the specified local user account, including profile folder and registry entries.
+    Removes the specified local user account along with its profile folder and associated registry entries.
 
     .DESCRIPTION
-    Removes the specified account using either the provided -SID or -Name parameter.
+    Removes the specified account using the provided -SID or -Name parameter.
 
     .PARAMETER SID
     The Security Identifier (SID) of the user account to remove.
@@ -328,9 +326,9 @@ function Remove-User {
     The username of the user account to remove.
 
     .PARAMETER Backup
-    Switch parameter: if provided it backs up the user profile and
-    - Excludes symbolic links.
-    - Saves the backup with a timestamp to the current user's desktop.
+    Switch parameter. ff provided, backs up the user profile while:  
+    - Excluding symbolic links.  
+    - Saving the backup with a timestamp to the current user's desktop.
 
     .NOTES
     Inspiration: https://adamtheautomator.com/powershell-delete-user-profile/
@@ -347,40 +345,42 @@ function Remove-User {
 
     Update-UserData
     if ($PSCmdlet.ParameterSetName -eq 'Set1') {
-        $SID       = ($users | Where-Object {$_.Name -eq $Name.Trim()} | Select-Object SID).SID
+        $SID    = ($users | Where-Object {$_.Name -eq $Name.Trim()} | Select-Object SID).SID
     }
     $SessionID       = ($users | Where-Object {$_.SID -eq $SID.Trim()} | Select-Object SessionID).SessionID
     $IdleSessionTime = ($users | Where-Object {$_.SID -eq $SID.Trim()} | Select-Object IdleSessionTime).IdleSessionTime
 
     if ($IdleSessionTime -eq '<Active>') {
         Write-Warning "You can't remove yourself while operating!"
+        Return
     }
-    else {
-        if ($SessionID) {
-            # Logout before removing
-            Stop-Session -SessionID $SessionID
+    if (-Not $SID) {
+        Write-Warning "User account not found."
+        Return
+    }
+    if ($SessionID) {
+        Stop-Session -SessionID $SessionID
+    }
+    if ($Backup) {
+        Backup-UserProfile -SID $SID
+    }
+
+    try {
+        # Remove CIM instance if exist (%USERPROFILE% folder and registry entry)
+        $profileCimInstance = Get-CimInstance -Class Win32_UserProfile | Where-Object { $_.SID -eq $SID }
+        if ($null -ne $profileCimInstance) {
+            Remove-CimInstance -InputObject $profileCimInstance
+            Write-Host "Removed profile folder and registry entries" -ForegroundColor green
+        }
+        else {
+            Write-Host "Profile not found" -ForegroundColor Yellow
         }
 
-        if ($Backup) {
-            Backup-UserProfile -SID $SID
-        }
-        try {
-            # Remove CIM instance if exist (%USERPROFILE% folder and registry entry)
-            $profileCimInstance = Get-CimInstance -Class Win32_UserProfile | Where-Object { $_.SID -eq $SID }
-            if ($null -ne $profileCimInstance) {
-                Remove-CimInstance -InputObject $profileCimInstance
-                Write-Host "Removed profile for Account with SID: $SID" -ForegroundColor Green
-            }
-            else {
-                Write-Warning "Profile not found for Account with SID: $SID"
-            }
-
-            # Remove the sign-in entry in Windows
-            Remove-LocalUser -SID $SID -ErrorAction Stop
-            Write-Host "Removed account with SID: $SID" -ForegroundColor Green
-        }
-        catch [Microsoft.PowerShell.Commands.UserNotFoundException] {
-            Write-Warning "Account NOT Found with SID: $SID"
-        }
+        # Remove the sign-in entry in Windows
+        Remove-LocalUser -SID $SID -ErrorAction Stop
+        Write-Host "Removed account entry" -ForegroundColor Green
+    }
+    catch [Microsoft.PowerShell.Commands.UserNotFoundException] {
+        Write-Host "Account entry not found" -ForegroundColor Yellow
     }
 }
