@@ -129,9 +129,9 @@ function Update-UserData {
     foreach ($user in $Script:users) {
         foreach ($session in $sessions) {
             if ($session.USERNAME -eq $user.Name) {
-                $user.LastLogout = '-' # overwrite LastUseTime that returns current time if session is running
+                $user.LastLogout = $null # overwrite LastUseTime that returns current time for running sessions
                 $user.SessionID = $session.ID
-                $user.IdleSessionTime = ($session.STATE -eq 'Active') ? '<Active>':(($session.IDLETIME -ne '.') ? $session.IDLETIME:'0')
+                $user.IdleSessionTime = ($session.STATE -eq 'Active') ? $($null):(($session.IDLETIME -ne '.') ? $session.IDLETIME:'0')
                 $user.SessionStart = $session.LOGONTIME
                 break
             }
@@ -139,30 +139,30 @@ function Update-UserData {
     }
 
     <#
-    Search for user profiles without a name.
+    Add NoName users, which are user profiles lacking a username.
     User profiles without a name happens as far as I know in two cases:
     1. users removed with Remove-LocalUser, command that does not delete profile directories and registry entries associated with the account
     2. users manually removed without deleting their associated data, a feature allowed in older versions of Windows
     #>
-    [array]$missingAccounts = @()
-    $missingAccounts = foreach ($profile in $userprofiles) {
+    [array]$noNameUsers = @()
+    $noNameUsers = foreach ($profile in $userprofiles) {
         if ($profile.SID -notin $users.SID) {
             [PSCustomObject]@{
                 SID = $profile.SID
-                Name = '<Ghost account>'
-                PrincipalSource = '-'
+                Name = $null
+                PrincipalSource = $null
                 LocalPath = $profile.LocalPath
-                isAdmin = '-'
-                PasswordLastSet = '-'
-                LastLogon = '-'
+                isAdmin = $null
+                PasswordLastSet = $null
+                LastLogon = $null
                 LastLogout = $profile.LastUseTime
-                SessionID = '-'
-                IdleSessionTime = '-'
-                SessionStart = '-'
+                SessionID = $null
+                IdleSessionTime = $null
+                SessionStart = $null
             }
         }
     }
-    $Script:users += $missingAccounts
+    $Script:users += $noNameUsers
 }
 
 function Stop-Session {
@@ -255,7 +255,7 @@ function Get-User {
     param ([Switch]$Activity)
     if ($Activity) {
         $columns = @(
-            @{n='Username'; e={$_.Name}},
+            @{n='Username'; e={$_.Name ? $_.Name:'-'}},
             @{n='PasswordLastSet'; e={$_.PasswordLastSet ? $_.PasswordLastSet:'-'}},
             @{n='LastLogin';e={$_.LastLogon ? $_.LastLogon:'-'}},
             @{n='LastLogout';e={$_.LastLogout ? $_.LastLogout:'-'}},
@@ -265,11 +265,11 @@ function Get-User {
     }
     else {
         $columns = @(
-            @{n='Username'; e={$_.Name}},
+            @{n='Username'; e={$_.Name ? $_.Name:'-'}},
             'SID',
-            @{n='AccountSource';e={$_.PrincipalSource}},
-            @{n='LocalPath';e={$_.LocalPath ? $_.LocalPath:'<Never created>'}},
-            'isAdmin'
+            @{n='AccountSource';e={$_.PrincipalSource ? $_.PrincipalSource:'-'}},
+            @{n='LocalPath';e={$_.LocalPath ? $_.LocalPath:'-'}},
+            @{n='isAdmin';e={($null -ne $_.isAdmin) ? $_.isAdmin:'-'}}
         )
     }
     Update-UserData
@@ -361,6 +361,19 @@ function Remove-User {
     if ($SessionID) {
         Stop-Session -SessionID $SessionID
     }
+    else {
+        <# 
+        When the admin runs `Remove-User -SID <SID>`, it is likely intended for a NoName user.  
+        If a NoName user's session is running, its session ID in the `$users` array will be `$null`
+        due to the absence of a username. The following code identifies and terminates such sessions.        
+        #>
+        $sessions = Read-Quser
+        foreach ($session in $sessions) {
+            if ($session.USERNAME -notin $users.Name) {
+                Stop-Session -SessionID $session.ID
+            }
+        }
+    }
     if ($Backup) {
         Backup-UserProfile -SID $SID
     }
@@ -369,7 +382,7 @@ function Remove-User {
         # Remove CIM instance if exist (%USERPROFILE% folder and registry entry)
         $profileCimInstance = Get-CimInstance -Class Win32_UserProfile | Where-Object { $_.SID -eq $SID }
         if ($null -ne $profileCimInstance) {
-            Remove-CimInstance -InputObject $profileCimInstance
+            Remove-CimInstance -InputObject $profileCimInstance -ErrorAction Stop
             Write-Host "Removed profile folder and registry entries" -ForegroundColor green
         }
         else {
@@ -382,5 +395,8 @@ function Remove-User {
     }
     catch [Microsoft.PowerShell.Commands.UserNotFoundException] {
         Write-Host "Account entry not found" -ForegroundColor Yellow
+    }
+    catch {
+        $_.exception.GetType().fullname
     }
 }
