@@ -30,7 +30,19 @@ CompanyName = 'Unknown'
 Copyright = '(c) Human.Against.Machine All rights reserved.'
 
 # Description of the functionality provided by this module
-Description = 'Powerful local users management'
+Description = @'
+The LocalUsers module simplifies local user management and monitoring, focusing exclusively on *real accounts*. Built-in system accounts are automatically excluded:
+`Administrator`, `Guest`, `DefaultAccount`, `WDAGUtilityAccount`, `LocalSystem`, `LocalService`, and `NetworkService`.
+
+Features:
+- User Information: Retrieve detailed data about local users, including session activity.
+- Lost account search: Identify user profiles lacking a username.
+- User Account Management: Create and delete local user accounts with ease.
+- Profile Backup: Optionally back up user profiles before user removal.
+- Session Handling: Automatically terminate running sessions before user removal.
+
+This module helps maintain system stability and efficiency.
+'@
 
 # Minimum version of the PowerShell engine required by this module
 PowerShellVersion = '7.1'
