@@ -326,7 +326,7 @@ function Remove-User {
     The username of the user account to remove.
 
     .PARAMETER Backup
-    Switch parameter. ff provided, backs up the user profile while:  
+    Switch parameter. if provided, backs up the user profile while:  
     - Excluding symbolic links.  
     - Saving the backup with a timestamp to the current user's desktop.
 
