@@ -1,4 +1,4 @@
-<#S
+﻿<#S
 .SYNOPSIS
 Powerful local users management
 #>
@@ -280,13 +280,14 @@ function New-User {
     <#
     .SYNOPSIS
     Creates a local user account with no expiration and a blank password.
-    If the -isAdmin switch is provided, the account will have administrator 
+    If the -isAdmin switch is provided, the account will have administrator
     privileges; otherwise, it will be a standard user.
 
     .DESCRIPTION
-    Creates a local account with a blank password. The newly created 
+    Creates a local account with a blank password. The newly created
     user must log in to set a password if desired.
     #>
+    [CmdletBinding(SupportsShouldProcess)]
     param (
         [Parameter(Mandatory=$True)]
         [string]$Name,
@@ -326,15 +327,15 @@ function Remove-User {
     The username of the user account to remove.
 
     .PARAMETER Backup
-    Switch parameter. if provided, backs up the user profile while:  
-    - Excluding symbolic links.  
+    Switch parameter. if provided, backs up the user profile while:
+    - Excluding symbolic links.
     - Saving the backup with a timestamp to the current user's desktop.
 
     .NOTES
     Inspiration: https://adamtheautomator.com/powershell-delete-user-profile/
     #>
 
-    [CmdletBinding(DefaultParameterSetName = 'Set0')]
+    [CmdletBinding(SupportsShouldProcess, DefaultParameterSetName = 'Set0')]
     param (
         [Parameter(ParameterSetName = 'Set0', Mandatory = $true)]
         [string]$SID,
@@ -362,10 +363,10 @@ function Remove-User {
         Stop-Session -SessionID $SessionID
     }
     else {
-        <# 
-        When the admin runs `Remove-User -SID <SID>`, it is likely intended for a NoName user.  
+        <#
+        When the admin runs `Remove-User -SID <SID>`, it is likely intended for a NoName user.
         If a NoName user's session is running, its session ID in the `$users` array will be `$null`
-        due to the absence of a username. The following code identifies and terminates such sessions.        
+        due to the absence of a username. The following code identifies and terminates such sessions.
         #>
         $sessions = Read-Quser
         foreach ($session in $sessions) {
