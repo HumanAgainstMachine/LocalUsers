@@ -39,12 +39,16 @@ function Read-Quser {
 $quserOutput = quser
 
 <#
-Define columns start positions from the header text line layout in English and should work for any language, consider these two layouts
- USERNAME              SESSIONNAME        ID  STATE   IDLE TIME  LOGON TIME - English
- NOMEUTENTE            NOMESESSIONE       ID  STATO   INATTIVITÀ ACCESSO    - Italian
-as you can see Microsoft takes care of spacing the column the same way for different language
+Define columns start positions from the header text line layout in English and should work for any language, consider these real quser layouts
+ USERNAME              SESSIONNAME        ID  STATE   IDLE TIME  LOGON TIME     - English, Portuguese, Simplified Chinese
+ NOMEUTENTE            NOMESESSIONE       ID  STATO   INATTIVITÀ ACCESSO        - Italian
+ UTILISATEUR           SESSION            ID  ÉTAT    TEMPS INACT TEMPS SESSION - French
+ NOMBRE USUARIO        NOMBRE SESIÓN      ID. ESTADO  TIEMPO IN. TIEMPO SESIÓN  - Spanish
+ 1                     23                 42  46      54         65   
+as you can see column spacing for different languages does not affect the parsing of quser output
 #>
-$headerLine = $quserOutput[0]
+# $headerLine = $quserOutput[0]
+$headerLine = " USERNAME              SESSIONNAME        ID  STATE   IDLE TIME  LOGON TIME"
 $p0 = $headerLine.IndexOf("USERNAME")
 $p1 = $headerLine.IndexOf("SESSIONNAME")
 $p2 = $headerLine.IndexOf("ID")
