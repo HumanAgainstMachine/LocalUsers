@@ -12,7 +12,7 @@
 RootModule = '.\LocalUsers.psm1'
 
 # Version number of this module.
-ModuleVersion = '1.0.0'
+ModuleVersion = '1.0.1'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Core')
@@ -31,8 +31,7 @@ Copyright = '(c) Human.Against.Machine All rights reserved.'
 
 # Description of the functionality provided by this module
 Description = @'
-The LocalUsers module simplifies local user management and monitoring, focusing exclusively on *real accounts*. Built-in system accounts are automatically excluded:
-`Administrator`, `Guest`, `DefaultAccount`, `WDAGUtilityAccount`, `LocalSystem`, `LocalService`, and `NetworkService`.
+The LocalUsers module simplifies local user management and monitoring, focusing exclusively on *real accounts*. Built-in system accounts are automatically excluded: `Administrator`, `Guest`, `DefaultAccount`, `WDAGUtilityAccount`, `LocalSystem`, `LocalService`, and `NetworkService`.
 
 Features:
 - User Information: Retrieve detailed data about local users, including session activity.
@@ -120,7 +119,11 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = @'
-[1.0.0] - 2024-12-26
+[1.0.1] - 2024-12-29
+Fixed
+- Typos in manifest Description and ReleaseNotes
+
+[1.0.0] - 2024-12-29
 Initial Release
 - Three cmdlets to manage local users: Get-User, New-User, Remove-User
 '@
