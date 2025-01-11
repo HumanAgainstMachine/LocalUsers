@@ -39,23 +39,40 @@ function Read-Quser {
 $quserOutput = quser
 
 <#
-Define columns start positions from the header text line layout in English and should work for any language, consider these real quser layouts
- USERNAME              SESSIONNAME        ID  STATE   IDLE TIME  LOGON TIME     - English, Portuguese, Simplified Chinese
- NOMEUTENTE            NOMESESSIONE       ID  STATO   INATTIVITÀ ACCESSO        - Italian
- UTILISATEUR           SESSION            ID  ÉTAT    TEMPS INACT TEMPS SESSION - French
- NOMBRE USUARIO        NOMBRE SESIÓN      ID. ESTADO  TIEMPO IN. TIEMPO SESIÓN  - Spanish
- 1                     23                 42  46      54         65   
-as you can see column spacing for different languages does not affect the parsing of quser output
+    Define columns start positions from the English header text line, should work for many languages, consider these real quser layouts
+     1                     23                 42  46      54         65            
+     ↓                     ↓                  ↓   ↓       ↓          ↓
+    ·USERNAME··············SESSIONNAME········ID··STATE···IDLE TIME··LOGON TIME     (English)
+    ·NOMEUTENTE············NOMESESSIONE·······ID··STATO···INATTIVITÀ·ACCESSO        (Italian)
+    ·UTILISATEUR···········SESSION············ID··ÉTAT····TEMPS INACT·TEMPS SESSION (French)
+    ·NOMBRE·USUARIO········NOMBRE·SESIÓN······ID.·ESTADO··TIEMPO IN.·TIEMPO SESIÓN  (Spanish)
+    ·BENUTZERNAME··········SITZUNGSNAME·······ID··STATUS··LEERLAUF···ANMELDEZEIT    (German)
+
+    as you can see column spacing for those different languages does not affect the parsing of quser output
 #>
-# $headerLine = $quserOutput[0]
-$headerLine = " USERNAME              SESSIONNAME        ID  STATE   IDLE TIME  LOGON TIME"
-$p0 = $headerLine.IndexOf("USERNAME")
-$p1 = $headerLine.IndexOf("SESSIONNAME")
-$p2 = $headerLine.IndexOf("ID")
-$p3 = $headerLine.IndexOf("STATE")
-$p4 = $headerLine.IndexOf("IDLE TIME")
-$p5 = $headerLine.IndexOf("LOGON TIME")
-$p6 = $headerLine.Length
+
+# Language support test
+$headerLine = $quserOutput[0].Trim()
+
+$supportedLanguages = @(
+    "USERNAME",         # EN
+    "NOMEUTENTE",       # IT
+    "UTILISATEUR",      # FR
+    "NOMBRE USUARIO",   # ES
+    "BENUTZERNAME"      # DE
+)
+
+if (($supportedLanguages | ForEach-Object { $headerLine.StartsWith($_) }) -notContains $true) {
+    throw "Language not supported, read the docs"
+}
+
+$p0 = 1  # $headerLine.IndexOf("USERNAME")
+$p1 = 23 # $headerLine.IndexOf("SESSIONNAME")
+$p2 = 42 # $headerLine.IndexOf("ID")
+$p3 = 46 # $headerLine.IndexOf("STATE")
+$p4 = 54 # $headerLine.IndexOf("IDLE TIME")
+$p5 = 65 # $headerLine.IndexOf("LOGON TIME")
+$p6 = 200 # $headerLine.Length
 
 # Get columns start and width
 $columns = @{
