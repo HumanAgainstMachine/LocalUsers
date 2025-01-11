@@ -40,7 +40,7 @@ $quserOutput = quser
 
 <#
     Define columns start positions from the English header text line, should work for many languages, consider these real quser layouts
-     1                     23                 42  46      54         65            
+     1                     23                 42  46      54         65
      ↓                     ↓                  ↓   ↓       ↓          ↓
     ·USERNAME··············SESSIONNAME········ID··STATE···IDLE TIME··LOGON TIME     (English)
     ·NOMEUTENTE············NOMESESSIONE·······ID··STATO···INATTIVITÀ·ACCESSO        (Italian)
