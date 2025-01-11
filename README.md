@@ -1,17 +1,26 @@
 
 # LocalUsers PowerShell Module
 
-The **LocalUsers** module simplifies local user management and monitoring, focusing exclusively on *real accounts*. Built-in system accounts are automatically excluded:
-`Administrator`, `Guest`, `DefaultAccount`, `WDAGUtilityAccount`, `LocalSystem`, `LocalService`, and `NetworkService`.
+## Overview
+**LocalUser** helps maintain Windows stability and efficiency, providing enhanced user-centric cmdlets for local user management:
 
-Features:
-- **User Information:** Retrieve detailed data about local users, including session activity.
-- **Lost account search:** Identify user profiles lacking a username.
-- **User Account Management:** Create and delete local user accounts with ease.
-- **Profile Backup:** Optionally back up user profiles before user removal.
-- **Session Handling:** Automatically terminate running sessions before user removal.
+- `Get-User`
+    1. Focuses only on real accounts (excludes built-in system accounts).
+    2. Retrieves lost accounts (profiles lacking a name).
+    3. Provides session activity details.
 
-This module helps maintain system stability and efficiency.
+-  `Remove-User`
+    1. Completely removes users, including profiles and registry entries.
+    2. Optionally backs up user profiles before removal.
+
+-  `New-User`
+    1. Enables fast user creation with a blank password.
+
+## Compatibility and Limitations
+The **LocalUser** module parses the output of the `quser` command, which is language-dependent. The module has been tested with `quser` outputs in English, Italian, German, French, and Spanish. Based on available information, no other language outputs are possible, so the module is expected to function universally.
+
+If a "Language not supported" exception is thrown, please contact me for assistance.
+
 
 ---
 
