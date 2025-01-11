@@ -12,7 +12,7 @@
 RootModule = '.\LocalUsers.psm1'
 
 # Version number of this module.
-ModuleVersion = '1.0.1'
+ModuleVersion = '1.1.0'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Core')
@@ -31,16 +31,19 @@ Copyright = '(c) Human.Against.Machine All rights reserved.'
 
 # Description of the functionality provided by this module
 Description = @'
-The LocalUsers module simplifies local user management and monitoring, focusing exclusively on *real accounts*. Built-in system accounts are automatically excluded: `Administrator`, `Guest`, `DefaultAccount`, `WDAGUtilityAccount`, `LocalSystem`, `LocalService`, and `NetworkService`.
+LocalUser helps maintain Windows stability and efficiency, providing enhanced user-centric cmdlets for local user management:
 
-Features:
-- User Information: Retrieve detailed data about local users, including session activity.
-- Lost account search: Identify user profiles lacking a username.
-- User Account Management: Create and delete local user accounts with ease.
-- Profile Backup: Optionally back up user profiles before user removal.
-- Session Handling: Automatically terminate running sessions before user removal.
+- Get-User
+    1. Focuses only on real accounts (excludes built-in system accounts).
+    2. Retrieves lost accounts (profiles lacking a name).
+    3. Provides session activity details.
 
-This module helps maintain system stability and efficiency.
+-  Remove-User
+    1. Completely removes users, including profiles and registry entries.
+    2. Optionally backs up user profiles before removal.
+
+-  New-User
+    1. Enables fast user creation with a blank password.
 '@
 
 # Minimum version of the PowerShell engine required by this module
@@ -106,7 +109,7 @@ PrivateData = @{
     PSData = @{
 
         # Tags applied to this module. These help with module discovery in online galleries.
-        Tags = @('Windows', 'Users-management', 'Local-users')
+        Tags = @('Windows', 'Users-management', 'Local-users', 'Account-management', 'Local-account')
 
         # A URL to the license for this module.
         LicenseUri = 'https://github.com/HumanAgainstMachine/LocalUsers/blob/main/LICENSE'
@@ -119,6 +122,11 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = @'
+[1.1.0] - 2025-01-11
+Read-Quser function:
+- Add language compatibility test for English, Italian, German, French, and Spanish. Throw a "Language not supported" exception for unsupported languages.
+- Improve `quser` output parsing by using fixed field indices.
+
 [1.0.1] - 2024-12-29
 Fixed
 - Typos in manifest Description and ReleaseNotes
