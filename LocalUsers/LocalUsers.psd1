@@ -12,7 +12,7 @@
 RootModule = '.\LocalUsers.psm1'
 
 # Version number of this module.
-ModuleVersion = '1.1.0'
+ModuleVersion = '1.1.1'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Core')
@@ -122,6 +122,10 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = @'
+[1.1.1] - 2025-01-12
+- Fix log out when attempting to remove yourself.
+- Improve representation of null values for `IdleSessionTime`.
+
 [1.1.0] - 2025-01-11
 Read-Quser function:
 - Add language compatibility test for English, Italian, German, French, and Spanish. Throw a "Language not supported" exception for unsupported languages.
