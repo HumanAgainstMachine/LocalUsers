@@ -123,7 +123,7 @@ function Update-UserData {
 
     # Get user accounts, built-in not included
     $Script:users = Get-LocalUser | Where-Object { $_.SID -notmatch '(-500|-501|-503|-504)$' }
-    | Select-Object SID, Name, PrincipalSource, LocalPath, isAdmin, PasswordLastSet, LastLogon, LastLogout, SessionID, IdleSessionTime, SessionStart
+    | Select-Object SID, Name, PrincipalSource, LocalPath, isAdmin, PasswordLastSet, LastLogon, LastLogout, SessionID, SessionState, IdleSessionTime, SessionStart
 
     # Get user profiles, special not included
     $userprofiles = Get-CimInstance -ClassName win32_userprofile -Filter "Special=False" | Select-Object SID, LocalPath, LastUseTime
@@ -145,14 +145,16 @@ function Update-UserData {
     foreach ($user in $Script:users) {
         $user.isAdmin = $Administrators -Contains "$env:COMPUTERNAME\$($user.name)"
     }
+
     # Add running sessions data to user accounts
     $sessions = Read-Quser
     foreach ($user in $Script:users) {
         foreach ($session in $sessions) {
             if ($session.USERNAME -eq $user.Name) {
+                $user.SessionState = ($session.STATE.ToLower() -in 'active', 'attivo', 'aktiv', 'actif', 'activo') ? 'Active':$null
                 $user.LastLogout = $null # overwrite LastUseTime that returns current time for running sessions
                 $user.SessionID = $session.ID
-                $user.IdleSessionTime = ($session.STATE -eq 'Active') ? $($null):(($session.IDLETIME -ne '.') ? $session.IDLETIME:'0')
+                $user.IdleSessionTime = ($user.SessionState -eq 'Active') ? $($null):(($session.IDLETIME -ne '.') ? $session.IDLETIME:'0')
                 $user.SessionStart = $session.LOGONTIME
                 break
             }
@@ -369,10 +371,10 @@ function Remove-User {
     if ($PSCmdlet.ParameterSetName -eq 'Set1') {
         $SID    = ($users | Where-Object {$_.Name -eq $Name.Trim()} | Select-Object SID).SID
     }
-    $SessionID       = ($users | Where-Object {$_.SID -eq $SID.Trim()} | Select-Object SessionID).SessionID
-    $IdleSessionTime = ($users | Where-Object {$_.SID -eq $SID.Trim()} | Select-Object IdleSessionTime).IdleSessionTime
+    $SessionID      = ($users | Where-Object {$_.SID -eq $SID.Trim()} | Select-Object SessionID).SessionID
+    $SessionState   = ($users | Where-Object {$_.SID -eq $SID.Trim()} | Select-Object SessionState).SessionState
 
-    if ($IdleSessionTime -eq '<Active>') {
+    if ($SessionState -eq 'Active') {
         Write-Warning "You can't remove yourself while operating!"
         Return
     }
