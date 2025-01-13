@@ -51,7 +51,7 @@ $quserOutput = quser
     as you can see column spacing for those different languages does not affect the parsing of quser output
 #>
 
-# Language support test
+# Language support check
 $headerLine = $quserOutput[0].Trim()
 
 $supportedLanguages = @(
@@ -63,7 +63,7 @@ $supportedLanguages = @(
 )
 
 if (($supportedLanguages | ForEach-Object { $headerLine.StartsWith($_) }) -notContains $true) {
-    throw "Language not supported, read the docs"
+    throw "Your Windows display language is not supported, read the docs to learn more."
 }
 
 $p0 = 1  # $headerLine.IndexOf("USERNAME")
@@ -290,7 +290,7 @@ function Get-User {
         $columns = @(
             @{n='Username'; e={$_.Name ? $_.Name:'-'}},
             'SID',
-            @{n='AccountSource';e={$_.PrincipalSource ? $_.PrincipalSource:'-'}},
+            @{n='AccountSource';e={$_.PrincipalSource ? ($_.PrincipalSource -as [string]):'-'}},
             @{n='LocalPath';e={$_.LocalPath ? $_.LocalPath:'-'}},
             @{n='isAdmin';e={($null -ne $_.isAdmin) ? $_.isAdmin:'-'}}
         )
@@ -316,22 +316,31 @@ function New-User {
         [string]$Name,
         [switch]$isAdmin
     )
-    try {
-        $blankPassword = [securestring]::new()
-        New-LocalUser -Name $Name -Password $blankPassword -PasswordNeverExpires `
-                      -AccountNeverExpires -ErrorAction Stop | Out-Null
 
-        if ($isAdmin) {
-            Add-LocalGroupMember -Group Administrators -Member $Name
-            Write-Host "$Name administrator account created" -ForegroundColor Green
-        }
-        else {
-            Add-LocalGroupMember -Group Users -Member $Name
-            Write-Host "$Name standard account created" -ForegroundColor Green
-        }
+    # 20 chars Name length check
+    if ($Name.Length -ge 20) {
+
+    }
+    $blankPassword = [securestring]::new()
+
+    try {
+        New-LocalUser -Name $Name -Password $blankPassword -PasswordNeverExpires -AccountNeverExpires -ErrorAction Stop | Out-Null
     }
     catch [Microsoft.PowerShell.Commands.UserExistsException] {
-        Write-Host "$Name account alredy exist" -ForegroundColor Red
+        # Re-throw the exception to propagate it up and hiding New-LocalUser origin
+        $PSCmdlet.ThrowTerminatingError($PSItem)
+    }
+    catch [System.Management.Automation.ParameterBindingException] {
+        throw "Username exceeds the maximum length. Please limit it to 20 characters or fewer."
+    }
+
+    if ($isAdmin) {
+        Add-LocalGroupMember -Group Administrators -Member $Name
+        Write-Host "$Name administrator account created" -ForegroundColor Green
+    }
+    else {
+        Add-LocalGroupMember -Group Users -Member $Name
+        Write-Host "$Name standard account created" -ForegroundColor Green
     }
 }
 
