@@ -12,7 +12,7 @@
 RootModule = '.\LocalUsers.psm1'
 
 # Version number of this module.
-ModuleVersion = '1.1.1'
+ModuleVersion = '1.2.0'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Core')
@@ -83,7 +83,7 @@ PowerShellVersion = '7.1'
 # NestedModules = @()
 
 # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
-FunctionsToExport = @('Get-User', 'Remove-User', 'New-User')
+FunctionsToExport = @('Get-User', 'Remove-User', 'New-User', 'Show-User')
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
 CmdletsToExport = @()
@@ -122,6 +122,14 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = @'
+[1.2.0] - 2025-01-14
+1. Add Show-User, a module GUI, experimental feature.
+2. Get-User: Cast `AccountSource` object to string for improved presentation.
+3. New-User:
+   - Add a username length validation before creating a local account.
+   - Refine try-catch handling for "user already exists" exceptions from `New-LocalUser`.
+4. Enhance console exception message for unsupported languages.
+
 [1.1.1] - 2025-01-12
 - Fix log out when attempting to remove yourself.
 - Improve representation of null values for `IdleSessionTime`.
