@@ -12,7 +12,7 @@
 RootModule = '.\LocalUsers.psm1'
 
 # Version number of this module.
-ModuleVersion = '1.2.0'
+ModuleVersion = '1.2.1'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Core')
@@ -47,7 +47,7 @@ LocalUser helps maintain Windows stability and efficiency, providing enhanced us
 '@
 
 # Minimum version of the PowerShell engine required by this module
-PowerShellVersion = '7.1'
+PowerShellVersion = '5.1'
 
 # Name of the PowerShell host required by this module
 # PowerShellHostName = ''
@@ -122,6 +122,9 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = @'
+[1.2.1] - 2025-03-17
+Change minimum version of the PowerShell engine required by this module to 5.1
+
 [1.2.0] - 2025-01-14
 1. Add Show-User, a module GUI, experimental feature.
 2. Get-User: Cast `AccountSource` object to string for improved presentation.
