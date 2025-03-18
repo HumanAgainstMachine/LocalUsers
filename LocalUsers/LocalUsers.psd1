@@ -12,7 +12,7 @@
 RootModule = '.\LocalUsers.psm1'
 
 # Version number of this module.
-ModuleVersion = '1.2.1'
+ModuleVersion = '1.2.2'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Core')
@@ -47,7 +47,7 @@ LocalUser helps maintain Windows stability and efficiency, providing enhanced us
 '@
 
 # Minimum version of the PowerShell engine required by this module
-PowerShellVersion = '5.1'
+PowerShellVersion = '7.1'
 
 # Name of the PowerShell host required by this module
 # PowerShellHostName = ''
@@ -122,6 +122,9 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = @'
+[1.2.2] - 2025-03-18
+Roll back to version 1.2.1
+
 [1.2.1] - 2025-03-17
 Change minimum version of the PowerShell engine required by this module to 5.1
 
