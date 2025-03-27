@@ -1,8 +1,8 @@
 # Ensure we're running as admin
 if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Warning "This script needs to be run as Administrator. Restarting with elevated privileges..."
-    Start-Process PowerShell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
-    exit
+    Start-Process Pwsh -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
+    exit    
 }
 
 # Path for PowerShell 7
@@ -75,3 +75,7 @@ $bytes[0x15] = $bytes[0x15] -bor 0x20
 [System.IO.File]::WriteAllBytes($shortcutPath, $bytes)
 
 Write-Host "Installation completed successfully!" -ForegroundColor Green
+
+# Pause before closing
+Write-Host "`nPress any key to close..."
+$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | Out-Null
