@@ -1,18 +1,47 @@
-# Ensure we're running as admin
+<#
+.SYNOPSIS
+    GUL app installation script
+.DESCRIPTION
+    GUL is a PowerShell 7.1+ app composed by LocalUsers module and a separate GUI script.
+#>
+
+# Create GUL Roaming Folder
+$gulRoamingFolder = Join-Path $env:APPDATA "GUL"
+New-Item -ItemType Directory -Force -Path $gulRoamingFolder | Out-Null
+
+$baseUrl = "https://github.com/HumanAgainstMachine/LocalUsers/releases/latest/download/"
+
+# Run as admin test
 if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    Write-Warning "This script needs to be run as Administrator. Restarting with elevated privileges..."
-    Start-Process Pwsh -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
-    exit    
+    Write-Warning "GUL needs to be installed as Administrator. Restarting with elevated privileges..."
+
+    # This script download
+    $myselfUrl = $baseUrl + "install-GUL.ps1"
+    $myselfPath = Join-Path $gulRoamingFolder "install-GUL.ps1"
+
+    try {
+        Invoke-WebRequest -Uri $myselfUrl -OutFile $myselfPath
+        Start-Process pwsh.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$myselfPath`"" -Verb RunAs
+        Write-Host "`nRelaunch success" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "`nRelaunch failed" -ForegroundColor Red
+    }
+    finally {
+        Write-Host "`nPress any key to close..."
+        $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | Out-Null        
+        exit
+    }
 }
 
 # Path for PowerShell 7
 $ps7Path = "C:\Program Files\PowerShell\7\pwsh.exe"
 
 # Install/Update LocalUsers module
-if (Get-Module -ListAvailable -Name LocalUsers) {
+if ($lUsers = Get-Module -ListAvailable -Name LocalUsers) {
     Write-Host "LocalUsers module is already installed. Checking for updates..." -ForegroundColor Green
     
-    $currentModule = Get-Module -ListAvailable -Name LocalUsers | Sort-Object Version -Descending | Select-Object -First 1
+    $currentModule = $lUsers | Sort-Object Version -Descending | Select-Object -First 1
     $onlineModule = Find-Module -Name LocalUsers -Repository PSGallery
     
     if ($onlineModule.Version -gt $currentModule.Version) {
@@ -26,20 +55,27 @@ if (Get-Module -ListAvailable -Name LocalUsers) {
     Write-Host "Installing LocalUsers module from PSGallery..." -ForegroundColor Yellow
     Install-Module -Name LocalUsers -Repository PSGallery -Force -Scope AllUsers
     
-    if (Get-Module -ListAvailable -Name LocalUsers) {
-        $installedModule = Get-Module -ListAvailable -Name LocalUsers | Sort-Object Version -Descending | Select-Object -First 1
+    if ($lUsers = Get-Module -ListAvailable -Name LocalUsers) {
+        $installedModule = $lUsers | Sort-Object Version -Descending | Select-Object -First 1
         Write-Host "LocalUsers module has been successfully installed (Version: $($installedModule.Version))." -ForegroundColor Green
     } else {
         Write-Host "Failed to install LocalUsers module. Please install manually." -ForegroundColor Red
     }
 }
 
-# Create GUL Roaming Folder and Wrapper Script
-$gulRoamingFolder = Join-Path $env:APPDATA "GUL"
-New-Item -ItemType Directory -Force -Path $gulRoamingFolder | Out-Null
+$gulAppUrl = $baseUrl + "GUL.ps1"
+
+# Create a script that the shortcut links to in order to prevent the shortcut from being flagged as a virus.
+$gulLaunchps1 = @"
+Start-Process pwsh.exe -Verb RunAs -ArgumentList '-Command "irm $gulAppUrl | iex"'
+"@
+
+$gulLaunchps1Path = Join-Path $gulRoamingFolder "LaunchGUL.ps1"
+Set-Content -Path $gulLaunchps1Path -Value $gulLaunchps1
+
 
 # Download icon
-$iconUrl = "https://github.com/HumanAgainstMachine/LocalUsers/releases/latest/download/GUL.ico"
+$iconUrl = $baseUrl + "GUL.ico"
 $iconPath = Join-Path $gulRoamingFolder "GUL.ico"
 
 try {
@@ -50,13 +86,6 @@ try {
     $iconPath = "$ps7Path,0"  # Fallback to PowerShell icon
 }
 
-$gulWrapperScript = @"
-Start-Process pwsh.exe -Verb RunAs -ArgumentList '-Command "irm https://github.com/HumanAgainstMachine/LocalUsers/releases/latest/download/GUL.ps1 | iex"'
-"@
-
-$gulWrapperScriptPath = Join-Path $gulRoamingFolder "LaunchGUL.ps1"
-Set-Content -Path $gulWrapperScriptPath -Value $gulWrapperScript
-
 # Create desktop shortcut for GUL
 $desktopPath = [Environment]::GetFolderPath("Desktop")
 $shortcutPath = Join-Path $desktopPath "GUL.lnk"
@@ -64,7 +93,7 @@ $shortcutPath = Join-Path $desktopPath "GUL.lnk"
 $WshShell = New-Object -ComObject WScript.Shell
 $Shortcut = $WshShell.CreateShortcut($shortcutPath)
 $Shortcut.TargetPath = $ps7Path
-$Shortcut.Arguments = "-ExecutionPolicy Bypass -File `"$gulWrapperScriptPath`""
+$Shortcut.Arguments = "-ExecutionPolicy Bypass -File `"$gulLaunchps1Path`""
 $Shortcut.IconLocation = $iconPath
 $Shortcut.Description = "Launch GUL"
 $Shortcut.Save()
