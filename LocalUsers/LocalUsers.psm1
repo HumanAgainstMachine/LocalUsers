@@ -317,10 +317,6 @@ function New-User {
         [switch]$isAdmin
     )
 
-    # 20 chars Name length check
-    if ($Name.Length -ge 20) {
-
-    }
     $blankPassword = [securestring]::new()
 
     try {
