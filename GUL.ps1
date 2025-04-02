@@ -26,11 +26,11 @@ $userGrid.EnableHeadersVisualStyles = $false
 $userGrid.ColumnHeadersDefaultCellStyle.SelectionBackColor = $userGrid.ColumnHeadersDefaultCellStyle.BackColor
 
 # Create columns
-$userGrid.Columns.Add("Username", "Username")
-$userGrid.Columns.Add("SID", "SID")
-$userGrid.Columns.Add("AccountSource", "AccountSource")
-$userGrid.Columns.Add("LocalPath", "LocalPath")
-$userGrid.Columns.Add("isAdmin", "isAdmin")
+$userGrid.Columns.Add("Username", "Username") | Out-Null
+$userGrid.Columns.Add("SID", "SID") | Out-Null
+$userGrid.Columns.Add("AccountSource", "AccountSource") | Out-Null
+$userGrid.Columns.Add("LocalPath", "LocalPath") | Out-Null
+$userGrid.Columns.Add("isAdmin", "isAdmin") | Out-Null
 
 # Set column widths
 $userGrid.Columns["Username"].Width = 130
