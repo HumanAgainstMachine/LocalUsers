@@ -228,6 +228,7 @@ function Backup-UserProfile {
         # List of folders to backup
         $foldersToBackup = @("Desktop", "Documents", "Pictures", "Music", "Videos", "Favorites")
 
+        Write-Host "Backing up user profile: $Name..."
         foreach ($folder in $foldersToBackup) {
             $sourcePath = Join-Path $userLocalPath $folder
             $destPath = Join-Path $BackupPath $folder
@@ -236,18 +237,19 @@ function Backup-UserProfile {
 
             $successfulBackup = $true
             # Check robocopy exit code (0-7 are considered successful)
-            if ($LASTEXITCODE -gt 7) {$successfulBackup = $false}
+            if ($LASTEXITCODE -gt 7) {$successfulBackup = $false}            
+            Write-Progress -Activity "Backing up $Name" -Status "Copying $folder..." -PercentComplete (($foldersToBackup.IndexOf($folder) / $foldersToBackup.Count) * 100)
         }
 
         if ($successfulBackup) {
-            Write-Host "$Name user profile successfully backed up on this desktop." -ForegroundColor Green
+            Write-Host "$Name Backup successful: user profile saved on this desktop." -ForegroundColor Green
         }
         else {
-            Write-Warning "$Name user profile backup failed."
+            Write-Warning "$Name Backup failed: error copying files from user profile."
         }
     }
     else {
-        Write-Warning "$Name user profile does not exist"
+        Write-Warning "$Name User profile not found. Backup operation skipped."
     }
 }
 
@@ -375,6 +377,8 @@ function Remove-User {
     Update-UserData
     if ($PSCmdlet.ParameterSetName -eq 'Set1') {
         $SID    = ($users | Where-Object {$_.Name -eq $Name.Trim()} | Select-Object SID).SID
+    } else {
+        $Name = ($users | Where-Object {$_.SID -eq $SID.Trim()} | Select-Object NAME).NAME
     }
     $SessionID      = ($users | Where-Object {$_.SID -eq $SID.Trim()} | Select-Object SessionID).SessionID
     $SessionState   = ($users | Where-Object {$_.SID -eq $SID.Trim()} | Select-Object SessionState).SessionState
@@ -408,22 +412,23 @@ function Remove-User {
     }
 
     try {
+        Write-Host "Removing user profile and registry data for: $Name..."
         # Remove CIM instance if exist (%USERPROFILE% folder and registry entry)
         $profileCimInstance = Get-CimInstance -Class Win32_UserProfile | Where-Object { $_.SID -eq $SID }
         if ($null -ne $profileCimInstance) {
             Remove-CimInstance -InputObject $profileCimInstance -ErrorAction Stop
-            Write-Host "Removed profile folder and registry entries" -ForegroundColor green
+            Write-Host "Profile data and registry entries successfully removed" -ForegroundColor green
         }
         else {
-            Write-Host "Profile not found" -ForegroundColor Yellow
+            Write-Warning "Profile not found"
         }
 
         # Remove the sign-in entry in Windows
         Remove-LocalUser -SID $SID -ErrorAction Stop
-        Write-Host "Removed account entry" -ForegroundColor Green
+        Write-Host "Account entry removed" -ForegroundColor Green
     }
     catch [Microsoft.PowerShell.Commands.UserNotFoundException] {
-        Write-Host "Account entry not found" -ForegroundColor Yellow
+        Write-Warning "Account entry not found"
     }
     catch {
         $_.exception.GetType().fullname
