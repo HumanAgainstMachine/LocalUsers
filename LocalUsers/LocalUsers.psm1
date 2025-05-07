@@ -208,6 +208,7 @@ function Backup-UserProfile {
     Backs up the user profile associated with the specified SID.
     - Excludes symbolic links.
     - Saves the backup with timestamp to the current user's desktop.
+    - Called by Remove-User cmdlet only if a user-name exists.
     #>
     param (
         [Parameter(Mandatory=$True)]
@@ -218,7 +219,8 @@ function Backup-UserProfile {
 
     $userLocalPath = (Get-CimInstance -Class Win32_UserProfile | Where-Object { $_.SID -eq $SID }).LocalPath
     if ($userLocalPath) {
-        $BackupPath = Join-Path ([Environment]::GetFolderPath('Desktop')) "$($Name)_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+        $backupDir = (Split-Path -Qualifier $env:windir) + "\UsersApp\backups"
+        $BackupPath = Join-Path $backupDir "$($Name)_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
 
         # Create the backup directory if it doesn't exist
         if (-Not (Test-Path -Path $BackupPath)) {
@@ -226,14 +228,14 @@ function Backup-UserProfile {
         }
 
         # List of folders to backup
-        $foldersToBackup = @("Desktop", "Documents", "Pictures", "Music", "Videos", "Favorites")
+        $foldersToBackup = @("Desktop", "Documents", "Downloads", "Links", "Pictures", "Music", "Videos", "Saved games")
 
         Write-Host "Backing up user profile: $Name..."
         foreach ($folder in $foldersToBackup) {
             $sourcePath = Join-Path $userLocalPath $folder
             $destPath = Join-Path $BackupPath $folder
 
-            & robocopy $sourcePath $destPath /E /XJ /R:1 /W:1 | Out-Null
+            & robocopy $sourcePath $destPath /E /COPY:DAT /XJ /R:1 /W:1 /IF /NP /NFL | Out-Null
 
             $successfulBackup = $true
             # Check robocopy exit code (0-7 are considered successful)
@@ -242,7 +244,7 @@ function Backup-UserProfile {
         }
 
         if ($successfulBackup) {
-            Write-Host "$Name Backup successful: user profile saved on this desktop." -ForegroundColor Green
+            Write-Host "$Name Backup successful: user profile saved on this computer." -ForegroundColor Green
         }
         else {
             Write-Warning "$Name Backup failed: error copying files from user profile."
