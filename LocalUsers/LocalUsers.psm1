@@ -203,12 +203,12 @@ function Stop-Session {
 }
 
 function Backup-UserProfile {
-    <# Inner function
+    <# Inner function called by Remove-User if and only if the user to remove has a username.
 
     Backs up the user profile associated with the specified SID.
     - Excludes symbolic links.
-    - Saves the backup with timestamp to the current user's desktop.
-    - Called by Remove-User cmdlet only if a user-name exists.
+    - Saves the backup with to path C:\UsersApp\backups.
+    - Overwrites existing backups.
     #>
     param (
         [Parameter(Mandatory=$True)]
@@ -220,7 +220,7 @@ function Backup-UserProfile {
     $userLocalPath = (Get-CimInstance -Class Win32_UserProfile | Where-Object { $_.SID -eq $SID }).LocalPath
     if ($userLocalPath) {
         $backupDir = (Split-Path -Qualifier $env:windir) + "\UsersApp\backups"
-        $BackupPath = Join-Path $backupDir "$($Name)_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+        $BackupPath = Join-Path $backupDir $Name.ToLower()
 
         # Create the backup directory if it doesn't exist
         if (-Not (Test-Path -Path $BackupPath)) {
@@ -235,7 +235,7 @@ function Backup-UserProfile {
             $sourcePath = Join-Path $userLocalPath $folder
             $destPath = Join-Path $BackupPath $folder
 
-            & robocopy $sourcePath $destPath /E /COPY:DAT /XJ /R:1 /W:1 /IF /NP /NFL | Out-Null
+            & robocopy $sourcePath $destPath /E /COPY:DAT /XJ /R:1 /W:1 /NP /NFL | Out-Null
 
             $successfulBackup = $true
             # Check robocopy exit code (0-7 are considered successful)
