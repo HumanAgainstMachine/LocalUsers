@@ -410,7 +410,7 @@ function Remove-User {
         }
     }
     if ($Backup) {
-        Backup-UserProfile -SID $SID
+        Backup-UserProfile -SID $SID 
     }
 
     try {
@@ -435,4 +435,115 @@ function Remove-User {
     catch {
         $_.exception.GetType().fullname
     }
+}
+
+function Reset-User {
+    <#
+    .SYNOPSIS
+        Resets a specified local user account to a clean state, preserving key profile data.
+
+    .DESCRIPTION
+        This cmdlet automates the process of resetting a local user account. It performs the following actions:
+        1. Backs up essential user profile data (e.g., Desktop, Documents, Downloads) from the user's
+           current profile to "C:\UsersApp\backups\<username>".
+        2. Completely removes the existing user account, including its profile folder and associated
+           registry entries.
+        3. Recreates the user account with the original username and preserves their administrator status
+           (admin or standard user).
+        4. Creates a script at "C:\UsersApp\restoreUserProfile.ps1" designed to restore the backed-up
+           profile data and perform cleanup.
+        5. Schedules a one-time task for the user (named "Restore_<username>_Profile") that, upon their
+           next logon, runs the "C:\UsersApp\restoreUserProfile.ps1" script. This script restores the
+           profile data and then unregisters itself.
+
+    .PARAMETER Name
+        The username of the local user account to be reset. This name is case-insensitive.
+
+    .EXAMPLE
+        PS C:\> Reset-User -Name "jsmith"
+
+        This command will back up jsmith's profile, remove and recreate the jsmith account (preserving
+        its admin status), create the necessary restore script, and schedule a task to restore the
+        profile data at jsmith's next login.
+    #>
+    [CmdletBinding(SupportsShouldProcess)]
+    param (
+        [Parameter(Mandatory=$True)]
+        [string]$Name
+    )
+    $adminGroup = Get-LocalGroupMember -Group "Administrators" -ErrorAction Stop
+    $SID = ($users | Where-Object {$_.Name -eq $Name.Trim()} | Select-Object SID).SID
+    if ($adminGroup.SID -contains $SID) {$isAdmin = $true}
+    else {$isAdmin = $false}
+    Backup-UserProfile -SID $SID
+    Remove-User -SID $SID
+    New-User -Name $Name -isAdmin $isAdmin
+
+    # Schedule restore task
+    $taskName = "Restore_${Name}_Profile"
+    $scriptPath = "C:\UsersApp\restoreUserProfile.ps1"
+    $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-ExecutionPolicy Bypass -NoProfile -File `"$scriptPath`""
+    $trigger = New-ScheduledTaskTrigger -AtLogOn
+    $principal = New-ScheduledTaskPrincipal -UserId $UserName -LogonType Interactive -RunLevel LeastPrivilege
+    Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Description "Restore user profile at first login"
+
+    # Create restoreUserProfile.ps1 file
+    $restoreScriptContent = @"
+<#
+.SYNOPSIS
+    Automated script to restore a user's profile data upon logon and perform cleanup.
+
+.DESCRIPTION
+    This script is automatically generated and scheduled by the 'Reset-User' cmdlet
+    (from the LocalUsers module) to run when a user logs on for the first time after
+    their account has been reset.
+
+    It performs the following actions:
+    1. Identifies the current user and locates their profile backup in
+       "C:\UsersApp\backups\<username>".
+    2. If the backup directory exists, it uses Robocopy to restore the profile contents
+       (Desktop, Documents, etc.) to the user's current profile path (\$env:USERPROFILE).
+       - Key Robocopy options: /E (subdirectories), /COPY:DAT (data, attributes, timestamps),
+         /XJ (exclude junction points).
+    3. After a successful restoration, the source backup folder
+       ("C:\UsersApp\backups\<username>") is deleted to save space.
+    4. Finally, it unregisters the scheduled task (e.g., "Restore_<username>_Profile")
+       that launched this script, ensuring it only executes once.
+
+.NOTES
+    - This script is intended for unattended execution via a scheduled task under the
+      user's context. It does not require manual intervention.
+    - The backup location "C:\UsersApp\backups\<username>" is predetermined by the
+      'Backup-UserProfile' function, which is called by 'Reset-User'.
+    - The script path "C:\UsersApp\restoreUserProfile.ps1" is also defined by the
+      'Reset-User' cmdlet when it creates this script and the associated scheduled task.
+    - If the backup path is not found, the script will proceed to unregister the
+      scheduled task without attempting a restore.
+#>
+
+
+# Get path to current user's profile backups
+\$driveLetter = Split-Path -Path \$env:windir -Qualifier
+\$profilePath = Join-Path -Path \$driveLetter -ChildPath "UsersApp\backups\$(\$env:USERNAME.ToLower())"
+
+if (Test-Path -Path \$profilePath) {
+    \$destinationPath = \$env:USERPROFILE
+
+    # /NP - No progress
+    # /NFL - No file list
+     & robocopy \$profilePath \$destinationPath /E /COPY:DAT /XJ /R:1 /W:1 /NP /NFL | Out-Null
+    
+    # Delete the source folder after successful copy
+    Remove-Item -Path \$profilePath -Recurse -Force
+}
+
+
+# Task name to remove (should match the registered task name)
+\$taskToRemove = "Restore_\$(\$env:USERNAME)_Profile"
+
+# Remove the task without asking for confirmation
+Unregister-ScheduledTask -TaskName \$taskToRemove -Confirm:\$false
+"@
+    Set-Content -Path $scriptPath -Value $restoreScriptContent
+
 }
