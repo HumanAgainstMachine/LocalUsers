@@ -1,4 +1,4 @@
-﻿<#S
+﻿<#
 .SYNOPSIS
     Powerful local users management
 #>
@@ -154,7 +154,7 @@ function Update-UserData {
                 $user.SessionState = ($session.STATE.ToLower() -in 'active', 'attivo', 'aktiv', 'actif', 'activo') ? 'Active':$null
                 $user.LastLogout = $null # overwrite LastUseTime that returns current time for running sessions
                 $user.SessionID = $session.ID
-                $user.IdleSessionTime = ($user.SessionState -eq 'Active') ? $($null):(($session.IDLETIME -ne '.') ? $session.IDLETIME:'0')
+                $user.IdleSessionTime = ($user.SessionState -eq 'Active') ? $null : (($session.IDLETIME -ne '.') ? $session.IDLETIME : '0')
                 $user.SessionStart = $session.LOGONTIME
                 break
             }
@@ -471,20 +471,21 @@ function Reset-User {
         [Parameter(Mandatory=$True)]
         [string]$Name
     )
+    Update-UserData
     $adminGroup = Get-LocalGroupMember -Group "Administrators" -ErrorAction Stop
     $SID = ($users | Where-Object {$_.Name -eq $Name.Trim()} | Select-Object SID).SID
     if ($adminGroup.SID -contains $SID) {$isAdmin = $true}
     else {$isAdmin = $false}
     Backup-UserProfile -SID $SID
     Remove-User -SID $SID
-    New-User -Name $Name -isAdmin $isAdmin
+    New-User -Name $Name -isAdmin:$isAdmin
 
     # Schedule restore task
     $taskName = "Restore_${Name}_Profile"
     $scriptPath = "C:\UsersApp\restoreUserProfile.ps1"
     $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-ExecutionPolicy Bypass -NoProfile -File `"$scriptPath`""
     $trigger = New-ScheduledTaskTrigger -AtLogOn
-    $principal = New-ScheduledTaskPrincipal -UserId $UserName -LogonType Interactive -RunLevel LeastPrivilege
+    $principal = New-ScheduledTaskPrincipal -UserId $Name -LogonType Interactive -RunLevel Limited
     Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Description "Restore user profile at first login"
 
     # Create restoreUserProfile.ps1 file
@@ -523,26 +524,26 @@ function Reset-User {
 
 
 # Get path to current user's profile backups
-\$driveLetter = Split-Path -Path \$env:windir -Qualifier
-\$profilePath = Join-Path -Path \$driveLetter -ChildPath "UsersApp\backups\$(\$env:USERNAME.ToLower())"
+`$driveLetter = Split-Path -Path `$env:windir -Qualifier
+`$profilePath = Join-Path -Path `$driveLetter -ChildPath "UsersApp\backups\`$(`$env:USERNAME.ToLower())"
 
-if (Test-Path -Path \$profilePath) {
-    \$destinationPath = \$env:USERPROFILE
+if (Test-Path -Path `$profilePath) {
+    `$destinationPath = `$env:USERPROFILE
 
     # /NP - No progress
     # /NFL - No file list
-     & robocopy \$profilePath \$destinationPath /E /COPY:DAT /XJ /R:1 /W:1 /NP /NFL | Out-Null
+     & robocopy `$profilePath `$destinationPath /E /COPY:DAT /XJ /R:1 /W:1 /NP /NFL | Out-Null
     
     # Delete the source folder after successful copy
-    Remove-Item -Path \$profilePath -Recurse -Force
+    Remove-Item -Path `$profilePath -Recurse -Force
 }
 
 
 # Task name to remove (should match the registered task name)
-\$taskToRemove = "Restore_\$(\$env:USERNAME)_Profile"
+`$taskToRemove = "Restore_`$(`$env:USERNAME)_Profile"
 
 # Remove the task without asking for confirmation
-Unregister-ScheduledTask -TaskName \$taskToRemove -Confirm:\$false
+Unregister-ScheduledTask -TaskName `$taskToRemove -Confirm:`$false
 "@
     Set-Content -Path $scriptPath -Value $restoreScriptContent
 
