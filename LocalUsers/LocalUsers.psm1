@@ -186,6 +186,19 @@ function Update-UserData {
         }
     }
     $Script:users += $noNameUsers
+
+    # Remove scheduled tasks for restored profile
+    $restoreTasks = Get-ScheduledTask | Where-Object { $_.TaskName -like 'Restore_Profile_*' -and ($_.State -as [string]) -ne 'Running' }
+
+    foreach ($task in $restoreTasks) {
+        $taskName = $task.TaskName
+        $userName = $taskName -replace '^Restore_Profile_', ''
+        $userSid  = ($users | Where-Object {$_.Name -eq $userName.Trim()} | Select-Object SID).SID
+        $userProfileExists = $userProfiles | Where-Object { $_.SID -eq $userSid }
+        if ($userProfileExists) {
+            Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue # SilentlyContinue on error, as it might already be gone
+        }
+    }
 }
 
 function Stop-Session {
@@ -452,9 +465,9 @@ function Reset-User {
            (admin or standard user).
         4. Creates a script at "C:\UsersApp\restoreUserProfile.ps1" designed to restore the backed-up
            profile data and perform cleanup.
-        5. Schedules a one-time task for the user (named "Restore_<username>_Profile") that, upon their
+        5. Schedules a one-time task for the user (named "Restore_Profile_<username>") that, upon their
            next logon, runs the "C:\UsersApp\restoreUserProfile.ps1" script. This script restores the
-           profile data and then unregisters itself.
+           profile data.
 
     .PARAMETER Name
         The username of the local user account to be reset. This name is case-insensitive.
@@ -481,7 +494,7 @@ function Reset-User {
     New-User -Name $Name -isAdmin:$isAdmin
 
     # Schedule restore task
-    $taskName = "Restore_${Name}_Profile"
+    $taskName = "Restore_Profile_$Name"
     $scriptPath = "C:\UsersApp\restoreUserProfile.ps1"
     $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-ExecutionPolicy Bypass -NoProfile -File `"$scriptPath`""
     $trigger = New-ScheduledTaskTrigger -AtLogOn
@@ -537,13 +550,6 @@ if (Test-Path -Path `$profilePath) {
     # Delete the source folder after successful copy
     Remove-Item -Path `$profilePath -Recurse -Force
 }
-
-
-# Task name to remove (should match the registered task name)
-`$taskToRemove = "Restore_`$(`$env:USERNAME)_Profile"
-
-# Remove the task without asking for confirmation
-Unregister-ScheduledTask -TaskName `$taskToRemove -Confirm:`$false
 "@
     Set-Content -Path $scriptPath -Value $restoreScriptContent
 
