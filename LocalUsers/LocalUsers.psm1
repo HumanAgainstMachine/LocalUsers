@@ -485,12 +485,8 @@ function Reset-User {
         [string]$Name
     )
     Update-UserData
-    $adminGroup = Get-LocalGroupMember -Group "Administrators" -ErrorAction Stop
-    $SID = ($users | Where-Object {$_.Name -eq $Name.Trim()} | Select-Object SID).SID
-    if ($adminGroup.SID -contains $SID) {$isAdmin = $true}
-    else {$isAdmin = $false}
-    Backup-UserProfile -SID $SID
-    Remove-User -SID $SID
+    $isAdmin = $users | Where-Object {$_.Name -eq $Name.Trim()} | Select-Object isAdmin
+    Remove-User -Name $Name -Backup
     New-User -Name $Name -isAdmin:$isAdmin
 
     # Schedule restore task
