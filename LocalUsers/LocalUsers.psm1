@@ -220,7 +220,7 @@ function Backup-UserProfile {
 
     Backs up the user profile associated with the specified SID.
     - Excludes symbolic links.
-    - Saves the backup with to path C:\UsersApp\backups.
+    - Saves the backup with to path C:\LocalUsers\backups.
     - Overwrites existing backups.
     #>
     param (
@@ -232,7 +232,7 @@ function Backup-UserProfile {
 
     $userLocalPath = (Get-CimInstance -Class Win32_UserProfile | Where-Object { $_.SID -eq $SID }).LocalPath
     if ($userLocalPath) {
-        $backupDir = (Split-Path -Qualifier $env:windir) + "\UsersApp\backups"
+        $backupDir = (Split-Path -Qualifier $env:windir) + "\LocalUsers\backups"
         $BackupPath = Join-Path $backupDir $Name.ToLower()
 
         # Create the backup directory if it doesn't exist
@@ -458,15 +458,15 @@ function Reset-User {
     .DESCRIPTION
         This cmdlet automates the process of resetting a local user account. It performs the following actions:
         1. Backs up essential user profile data (e.g., Desktop, Documents, Downloads) from the user's
-           current profile to "C:\UsersApp\backups\<username>".
+           current profile to "C:\LocalUsers\backups\<username>".
         2. Completely removes the existing user account, including its profile folder and associated
            registry entries.
         3. Recreates the user account with the original username and preserves their administrator status
            (admin or standard user).
-        4. Creates a script at "C:\UsersApp\restoreUserProfile.ps1" designed to restore the backed-up
+        4. Creates a script at "C:\LocalUsers\restoreUserProfile.ps1" designed to restore the backed-up
            profile data and perform cleanup.
         5. Schedules a one-time task for the user (named "Restore_Profile_<username>") that, upon their
-           next logon, runs the "C:\UsersApp\restoreUserProfile.ps1" script. This script restores the
+           next logon, runs the "C:\LocalUsers\restoreUserProfile.ps1" script. This script restores the
            profile data.
 
     .PARAMETER Name
@@ -491,9 +491,56 @@ function Reset-User {
 
     # Schedule restore task
     $taskName = "Restore_Profile_$Name"
-    $scriptPath = "C:\UsersApp\restoreUserProfile.ps1"
+    $scriptPath = "C:\LocalUsers\restoreUserProfile.ps1"
     $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-ExecutionPolicy Bypass -NoProfile -File `"$scriptPath`""
     $trigger = New-ScheduledTaskTrigger -AtLogOn
     $principal = New-ScheduledTaskPrincipal -UserId $Name -LogonType Interactive -RunLevel Limited
     Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Description "Restore user profile at first login"
+
+    # Save restore script if missing
+    if (-Not (Test-Path -Path $scriptPath)) {
+        $scriptContent = @"
+<#
+.SYNOPSIS
+    Automated script to restore a user's profile data upon logon and perform cleanup.
+
+.DESCRIPTION
+    This script is scheduled by the 'Reset-User' cmdlet (from the LocalUsers module) 
+    to run when a user logs on for the first time after their account has been reset.
+
+    It performs the following actions:
+    1. Identifies the current user and locates their profile backup in
+       "C:\LocalUsers\backups\<username>".
+    2. If the backup directory exists, it uses Robocopy to restore the profile contents
+       (Desktop, Documents, etc.) to the user's current profile path (`$env:USERPROFILE).
+       - Key Robocopy options: /E (subdirectories), /COPY:DAT (data, attributes, timestamps),
+         /XJ (exclude junction points).
+    3. After a successful restoration, the source backup folder
+       ("C:\LocalUsers\backups\<username>") is deleted to save space.
+
+.NOTES
+    - This script is intended for unattended execution via a scheduled task under the
+      user's context. It does not require manual intervention.
+    - The backup location "C:\LocalUsers\backups\<username>" is predetermined by the
+      'Backup-UserProfile' function, which is called by 'Remove-User'.
+#>
+
+
+# Get path to current user's profile backups
+`$driveLetter = Split-Path -Path `$env:windir -Qualifier
+`$profilePath = Join-Path -Path `$driveLetter -ChildPath "LocalUsers\backups\`$(`$env:USERNAME.ToLower())"
+
+if (Test-Path -Path `$profilePath) {
+    `$destinationPath = `$env:USERPROFILE
+
+     & robocopy `$profilePath `$destinationPath /E /COPY:DAT /XJ /R:1 /W:1 /NP /NFL | Out-Null
+    
+    # Delete the source folder after successful copy
+    Remove-Item -Path `$profilePath -Recurse -Force
+}
+"@
+        New-Item -ItemType File -Path $scriptPath -Force -Value $scriptContent | Out-Null
+
+    }
+    
 }
