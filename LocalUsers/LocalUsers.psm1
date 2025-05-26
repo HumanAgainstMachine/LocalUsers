@@ -21,7 +21,7 @@ These accounts are foundational to Windows and shouldn’t be altered or deleted
 #>
 
 #Requires -RunAsAdministrator
-$DebugPreference = 'Continue'
+# $DebugPreference = 'Continue'
 
 # -- Module vars --
 
