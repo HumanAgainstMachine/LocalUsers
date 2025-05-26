@@ -36,6 +36,11 @@ function Read-Quser {
     PowerShell custom objects representing user information.
     #>
 
+    # Check if quser.exe is available
+    if (-not (Get-Command quser.exe -ErrorAction SilentlyContinue)) {
+        throw "The 'quser.exe' command is not available on this system. This command is typically available on Windows Professional and Server editions, or systems with the Remote Desktop Session Host role installed. The LocalUsers module requires 'quser.exe' to retrieve active session information."
+    }
+
 $quserOutput = quser
 
 <#
